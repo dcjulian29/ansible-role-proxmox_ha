@@ -1,3 +1,9 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# tasks file for proxmox_ha
+# The work happens at two points in a create role's run, so there is nothing
+# sensible to do when the role is applied on its own.
+- name: Stop when the role is run without an entry point
+  ansible.builtin.fail:
+    msg: >-
+      dcjulian29.proxmox_ha has no default tasks. Call it with include_role
+      and tasks_from: leave (before stopping or destroying a guest) or join
+      (after the guest is created and started).

@@ -1,0 +1,57 @@
+---
+- name: Verify the guest's HA resource ID and rule names
+  ansible.builtin.assert:
+    that:
+      - proxmox_ha_resource is match('^(vm|ct):[0-9]+$')
+      - proxmox_ha_rule_names | difference(proxmox_ha_rules.keys() | list) | length == 0
+    fail_msg: >-
+      proxmox_ha_resource must be vm:<vmid> or ct:<vmid> (got
+      "{{ proxmox_ha_resource }}"), and every rule name must be defined in
+      proxmox_ha_rules (undefined: {{ proxmox_ha_rule_names
+      | difference(proxmox_ha_rules.keys() | list) | join(', ') }}).
+    quiet: true
+
+# First, because Proxmox refuses a rule naming a resource that is not under HA
+# management ("cannot use unmanaged resource(s)").
+- name: "{{ 'Put ' + proxmox_ha_resource + ' under HA management' }}"
+  community.proxmox.proxmox_cluster_ha_resources:
+    api_host: "{{ proxmox_api_endpoint }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_user: "{{ proxmox_api_user }}"
+    hastate: "{{ proxmox_ha_state }}"
+    max_relocate: "{{ proxmox_ha_max_relocate }}"
+    max_restart: "{{ proxmox_ha_max_restart }}"
+    name: "{{ proxmox_ha_resource }}"
+    state: present
+  delegate_to: "{{ proxmox_api_host }}"
+
+- name: Read the configured HA rules
+  community.proxmox.proxmox_cluster_ha_rules_info:
+    api_host: "{{ proxmox_api_endpoint }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_user: "{{ proxmox_api_user }}"
+  register: proxmox_ha_current
+  delegate_to: "{{ proxmox_api_host }}"
+  when: proxmox_ha_rule_names | length > 0
+
+- name: "{{ 'Add ' + proxmox_ha_resource + ' to its HA rules' }}"
+  community.proxmox.proxmox_cluster_ha_rules:
+    affinity: "{{ proxmox_ha_rules[item].affinity | default(omit) }}"
+    api_host: "{{ proxmox_api_endpoint }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_user: "{{ proxmox_api_user }}"
+    comment: "{{ proxmox_ha_rules[item].comment | default(omit) }}"
+    disable: "{{ proxmox_ha_rules[item].disable | default(omit) }}"
+    name: "{{ item }}"
+    nodes: "{{ proxmox_ha_rules[item].nodes | default(omit) }}"
+    resources: "{{ proxmox_ha_members | union([proxmox_ha_resource]) | sort }}"
+    state: present
+    strict: "{{ proxmox_ha_rules[item].strict | default(omit) }}"
+    type: "{{ proxmox_ha_rules[item].type }}"
+  vars:
+    # rules_info splits an empty resources string into [''], hence the reject.
+    proxmox_ha_members: >-
+      {{ proxmox_ha_current.rules | selectattr('rule', 'equalto', item)
+      | map(attribute='resources') | first | default([]) | reject('equalto', '') | list }}
+  loop: "{{ proxmox_ha_rule_names }}"
+  delegate_to: "{{ proxmox_api_host }}"

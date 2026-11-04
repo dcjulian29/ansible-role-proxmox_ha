@@ -1,3 +1,35 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# defaults file for proxmox_ha
+## Provided by the calling role (include_role vars)
+
+# HA resource ID of the guest: vm:<vmid> for a VM, ct:<vmid> for a container.
+proxmox_ha_resource: ""
+# Names of the rules in proxmox_ha_rules that this guest is a member of.
+proxmox_ha_rule_names: []
+
+## Provided by Playbook / group_vars
+
+proxmox_api_host: ""
+proxmox_api_endpoint: "{{ proxmox_api_host }}"
+proxmox_api_user: ""
+proxmox_api_password: ""
+
+# Rule definitions, keyed by rule name. Guests only name the rules they belong
+# to, so the options live in one place and two guests sharing a rule cannot
+# disagree about them (each run would otherwise rewrite the rule). A rule's
+# resources are never listed here: each guest adds itself on creation.
+#   prefer-host1:
+#     type: node-affinity
+#     nodes: [host1:2, host2:1]
+#     strict: false
+#   split-media:
+#     type: resource-affinity
+#     affinity: negative
+proxmox_ha_rules: {}
+
+## Other, may be overridden in Playbook
+
+# State the HA manager keeps the guest in. started matches the create roles,
+# which leave the guest running.
+proxmox_ha_state: started
+proxmox_ha_max_relocate: 1
+proxmox_ha_max_restart: 1

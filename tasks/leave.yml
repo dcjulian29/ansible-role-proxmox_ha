@@ -1,0 +1,9 @@
+---
+- name: "{{ 'Take ' + proxmox_ha_resource + ' out of HA management and its HA rules' }}"
+  community.proxmox.proxmox_cluster_ha_resources:
+    api_host: "{{ proxmox_api_endpoint }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_user: "{{ proxmox_api_user }}"
+    name: "{{ proxmox_ha_resource }}"
+    state: absent
+  delegate_to: "{{ proxmox_api_host }}"
